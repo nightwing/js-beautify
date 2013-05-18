@@ -86,7 +86,7 @@
         var input, output, token_text, token_type, last_type, last_last_text, indent_string;
         var flags, previous_flags, flag_store;
         var whitespace, wordchar, punct, parser_pos, line_starters, digits;
-        var prefix;
+        var prefix, dot_after_newline;
         var input_wanted_newline;
         var output_wrapped, output_space_before_token;
         var input_length, n_newlines, whitespace_before_token;
@@ -308,6 +308,10 @@
 
         function just_added_newline() {
             return output.length && output[output.length - 1] === "\n";
+        }
+
+        function just_added_blankline() {
+            return just_added_newline() && output.length - 1 > 0 && output[output.length - 2] === "\n";
         }
 
         function _last_index_of(arr, find) {
@@ -969,6 +973,10 @@
                 set_mode(MODE.ArrayLiteral);
                 indent();
             }
+            if(dot_after_newline) {
+              dot_after_newline = false;
+              indent();
+            }
         }
 
         function handle_end_expr() {
@@ -1091,6 +1099,10 @@
                 }
             }
 
+            if(dot_after_newline && is_special_word(token_text)) {
+              dot_after_newline = false;
+            }
+
             // if may be followed by else, or not
             // Bare/inline ifs are tricky
             // Need to unwind the modes correctly: if (a) if (b) c(); else d(); else e();
@@ -1107,16 +1119,15 @@
                 if (flags.var_line && last_type !== 'TK_EQUALS') {
                     flags.var_line_reindented = true;
                 }
-                if ((just_added_newline() || flags.last_text === ';') && flags.last_text !== '{' &&
-                    !is_array(flags.mode)) {
+                if ((just_added_newline() || flags.last_text === ';' || flags.last_text === '}') &&
+                    flags.last_text !== '{' && !is_array(flags.mode)) {
                     // make sure there is a nice clean space of at least one blank line
                     // before a new function definition, except in arrays
-                    n_newlines = just_added_newline() ? n_newlines : 0;
-                    if (!opt.preserve_newlines) {
-                        n_newlines = 1;
+                    if(!just_added_newline()) {
+                        print_newline(true);
                     }
 
-                    for (var i = 0; i < 2 - n_newlines; i++) {
+                    if(!just_added_blankline()) {
                         print_newline(true);
                     }
                 }
@@ -1480,7 +1491,12 @@
                 allow_wrap_or_preserved_newline (flags.last_text === ')' && opt.break_chained_methods);
             }
 
+            if (just_added_newline()) {
+                dot_after_newline = true;
+            }
+
             print_token();
+
         }
 
         function handle_unknown() {

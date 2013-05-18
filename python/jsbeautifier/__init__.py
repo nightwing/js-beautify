@@ -230,6 +230,7 @@ class Beautifier:
         self.last_last_text = ''         # pre-last token text
 
         self.input = None
+        self.dot_after_newline = False
         self.output = []                 # formatted javascript gets built here
         self.output_wrapped = False
         self.output_space_before_token = False
@@ -348,6 +349,9 @@ class Beautifier:
 
     def just_added_newline(self):
         return len(self.output) and self.output[-1] == '\n'
+
+    def just_added_blankline(self):
+        return self.just_added_newline() and len(self.output) - 1 > 0 and self.output[-2] == '\n'
 
     def last_index(self, arr, find):
         last_index = len(arr) - 1
@@ -825,6 +829,9 @@ class Beautifier:
         if self.token_text == '[':
             self.set_mode(MODE.ArrayLiteral)
             self.indent()
+        if self.dot_after_newline:
+            self.dot_after_newline = False
+            self.indent()
 
 
 
@@ -930,6 +937,9 @@ class Beautifier:
                 self.append_newline()
                 self.flags.do_block = False
 
+        if self.dot_after_newline and self.is_special_word(token_text):
+            self.dot_after_newline = False
+
         # if may be followed by else, or not
         # Bare/inline ifs are tricky
         # Need to unwind the modes correctly: if (a) if (b) c(); else d(); else e();
@@ -944,15 +954,13 @@ class Beautifier:
         if token_text == 'function':
             if self.flags.var_line and self.flags.last_text != '=':
                 self.flags.var_line_reindented = not self.opts.keep_function_indentation
-            if (self.just_added_newline() or self.flags.last_text == ';') and self.flags.last_text != '{' and not self.is_array(self.flags.mode):
+            if (self.just_added_newline() or self.flags.last_text == ';' or self.flags.last_text == '}') and \
+                    self.flags.last_text != '{' and not self.is_array(self.flags.mode):
                 # make sure there is a nice clean space of at least one blank line
                 # before a new function definition, except in arrays
-                have_newlines = self.n_newlines
                 if not self.just_added_newline():
-                    have_newlines = 0
-                if not self.opts.preserve_newlines:
-                    have_newlines = 1
-                for i in range(2 - have_newlines):
+                    self.append_newline(True)
+                if not self.just_added_blankline():
                     self.append_newline(True)
 
             if self.last_type == 'TK_WORD':
@@ -1280,6 +1288,9 @@ class Beautifier:
             self.allow_wrap_or_preserved_newline(token_text,
                 self.flags.last_text == ')' and self.opts.break_chained_methods)
 
+        if self.just_added_newline():
+            self.dot_after_newline = True
+
         self.append_token(token_text)
 
     def handle_unknown(self, token_text):
@@ -1296,11 +1307,11 @@ def main():
     argv = sys.argv[1:]
 
     try:
-        opts, args = getopt.getopt(argv, "s:c:o:dPjbkil:xhtfvX",
+        opts, args = getopt.getopt(argv, "s:c:o:dPjbkil:xhtfvXw:",
             ['indent-size=','indent-char=','outfile=', 'disable-preserve-newlines',
             'space-in-paren', 'jslint-happy', 'brace-style=', 'keep-array-indentation',
             'indent-level=', 'unescape-strings', 'help', 'usage', 'stdin', 'eval-code',
-            'indent-with-tabs', 'keep-function-indentation', 'version', 'e4x'])
+            'indent-with-tabs', 'keep-function-indentation', 'version', 'e4x', 'wrap-line-length'])
     except getopt.GetoptError as ex:
         print(ex, file=sys.stderr)
         return usage(sys.stderr)

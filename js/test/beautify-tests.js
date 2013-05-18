@@ -28,6 +28,11 @@ function run_beautifier_tests(test_obj, Urlencoded, js_beautify)
     {
         expected = expected || input;
         sanitytest.expect(input, expected);
+        // if the expected is different from input, run it again
+        // expected output should be unchanged when run twice.
+        if (expected != input) {
+            sanitytest.expect(expected, expected);
+        }
     }
 
 
@@ -614,7 +619,7 @@ function run_beautifier_tests(test_obj, Urlencoded, js_beautify)
         test_fragment('function f(a: a, b: b)'); // actionscript
 
         bt('{\n    foo // something\n    ,\n    bar // something\n    baz\n}');
-        bt('function a(a) {} function b(b) {} function c(c) {}', 'function a(a) {}\nfunction b(b) {}\nfunction c(c) {}');
+        bt('function a(a) {} function b(b) {} function c(c) {}', 'function a(a) {}\n\nfunction b(b) {}\n\nfunction c(c) {}');
         bt('foo(a, function() {})');
 
         bt('foo(a, /regex/)');
@@ -837,7 +842,7 @@ function run_beautifier_tests(test_obj, Urlencoded, js_beautify)
             'function f(a, b, c, d, e) {}');
 
         bt('function f(a,b) {if(a) b()}function g(a,b) {if(!a) b()}',
-            'function f(a, b) {\n    if (a) b()\n}\nfunction g(a, b) {\n    if (!a) b()\n}');
+            'function f(a, b) {\n    if (a) b()\n}\n\nfunction g(a, b) {\n    if (!a) b()\n}');
         bt('function f(a,b) {if(a) b()}\n\n\n\nfunction g(a,b) {if(!a) b()}',
             'function f(a, b) {\n    if (a) b()\n}\n\nfunction g(a, b) {\n    if (!a) b()\n}');
 
@@ -887,7 +892,7 @@ function run_beautifier_tests(test_obj, Urlencoded, js_beautify)
             'function f(a, b, c,\n    d, e) {}');
 
         bt('function f(a,b) {if(a) b()}function g(a,b) {if(!a) b()}',
-            'function f(a, b) {\n    if (a) b()\n}\nfunction g(a, b) {\n    if (!a) b()\n}');
+            'function f(a, b) {\n    if (a) b()\n}\n\nfunction g(a, b) {\n    if (!a) b()\n}');
         bt('function f(a,b) {if(a) b()}\n\n\n\nfunction g(a,b) {if(!a) b()}',
             'function f(a, b) {\n    if (a) b()\n}\n\n\n\nfunction g(a, b) {\n    if (!a) b()\n}');
         // This is not valid syntax, but still want to behave reasonably and not side-effect
@@ -923,7 +928,7 @@ function run_beautifier_tests(test_obj, Urlencoded, js_beautify)
            'try {\n    while (true) {\n        willThrow()\n    }\n} catch (result) switch (result) {\n    case 1:\n        ++result\n}');
         bt('((e/((a+(b)*c)-d))^2)*5;', '((e / ((a + (b) * c) - d)) ^ 2) * 5;');
         bt('function f(a,b) {if(a) b()}function g(a,b) {if(!a) b()}',
-            'function f(a, b) {\n    if (a) b()\n}\nfunction g(a, b) {\n    if (!a) b()\n}');
+            'function f(a, b) {\n    if (a) b()\n}\n\nfunction g(a, b) {\n    if (!a) b()\n}');
         bt('a=[];',
             'a = [];');
         bt('a=[b,c,d];',
@@ -936,7 +941,7 @@ function run_beautifier_tests(test_obj, Urlencoded, js_beautify)
            'try {\n    while ( true ) {\n        willThrow( )\n    }\n} catch ( result ) switch ( result ) {\n    case 1:\n        ++result\n}');
         bt('((e/((a+(b)*c)-d))^2)*5;', '( ( e / ( ( a + ( b ) * c ) - d ) ) ^ 2 ) * 5;');
         bt('function f(a,b) {if(a) b()}function g(a,b) {if(!a) b()}',
-            'function f( a, b ) {\n    if ( a ) b( )\n}\nfunction g( a, b ) {\n    if ( !a ) b( )\n}');
+            'function f( a, b ) {\n    if ( a ) b( )\n}\n\nfunction g( a, b ) {\n    if ( !a ) b( )\n}');
         bt('a=[ ];',
             'a = [ ];');
         bt('a=[b,c,d];',
@@ -958,6 +963,28 @@ function run_beautifier_tests(test_obj, Urlencoded, js_beautify)
         // as part of the xml-literal (passed through unaltered)
         test_fragment('xml=<a></b>\nc<b;', 'xml = <a></b>\nc<b;');
         opts.e4x = false;
+
+        // START tests for issue 241
+        bt('obj\n' +
+           '    .last({\n' +
+           '        foo: 1,\n' +
+           '        bar: 2\n' +
+           '    });\n' +
+           'var test = 1;');
+
+        bt('obj\n' +
+           '    .last(function() {\n' +
+           '        var test;\n' +
+           '    });\n' +
+           'var test = 1;');
+
+        bt('obj.first()\n' +
+           '    .second()\n' +
+           '    .last(function(err, response) {\n' +
+           '        console.log(err);\n' +
+           '    });');
+
+        // END tests for issue 241
 
 
         Urlencoded.run_tests(sanitytest);
